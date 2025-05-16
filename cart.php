@@ -113,7 +113,7 @@ $cartTotals = calculateCartTotals($_SESSION['cart'] ?? [], $pdo);
                             <td>R$<?php echo number_format($itemSubtotal, 2); ?></td>
                             <td>
                                 
-                                    <button type="submit" name="remove_item" class="update-btn">Remover</button>
+                                    <a href="?action=remove&product_id=<?php echo $cartItem['product_id']; ?>" class="remove-btn">Remover</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>

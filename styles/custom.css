@@ -49,11 +49,11 @@ h1 {
     background-color: #218838;
 }
 
-.update-btn[name="remove_item"] {
-    background-color: #dc3545; 
+.remove-btn {
+    background-color: #dc3545;
 }
 
-.update-btn[name="remove_item"]:hover {
+.remove-btn:hover {
     background-color: #c82333;
 }
 
