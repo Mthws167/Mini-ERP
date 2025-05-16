@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mail($customerEmail, "Confirmação do Pedido", $emailBody, "From: no-reply@lojaonline.com");
 
         unset($_SESSION['cart'], $_SESSION['coupon']);
-        header('Location: order_completed.php');
+        header('Location: order_success.php');
         exit;
     } else {
         header('Location: cart.php?error=insufficient_stock');
