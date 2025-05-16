@@ -1,122 +1,137 @@
 <?php
-include 'db.php';
+require_once 'db.php';
 session_start();
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $address = $_POST['street'] . ', ' . $_POST['number'] . ', ' . $_POST['city'] . ' - ' . $_POST['state'] . ', CEP: ' . $_POST['cep'];
-
-    $subtotal = 0;
-    foreach ($_SESSION['cart'] as $item) {
-        $stmt = $pdo->prepare("SELECT price FROM products WHERE id = ?");
-        $stmt->execute([$item['product_id']]);
-        $price = $stmt->fetchColumn();
-        $subtotal += $price * $item['quantity'];
+function calculateOrderTotals($cart, $pdo) {
+    $orderSubtotal = 0;
+    foreach ($cart as $cartItem) {
+        $query = $pdo->prepare("SELECT price FROM products WHERE id = ?");
+        $query->execute([$cartItem['product_id']]);
+        $itemPrice = $query->fetchColumn();
+        $orderSubtotal += $itemPrice * $cartItem['quantity'];
     }
 
-    $discount = 0;
-    if (isset($_SESSION['coupon']) && $subtotal >= ($_SESSION['coupon']['min_order_value'] ?? 0)) {
-        $discount = ($_SESSION['coupon']['discount_type'] == 'fixed') ? $_SESSION['coupon']['discount_value'] : $subtotal * ($_SESSION['coupon']['discount_value'] / 100);
+    $discountAmount = 0;
+    if (isset($_SESSION['coupon']) && $orderSubtotal >= ($_SESSION['coupon']['min_order_value'] ?? 0)) {
+        $coupon = $_SESSION['coupon'];
+        $discountAmount = ($coupon['discount_type'] === 'fixed') 
+            ? $coupon['discount_value'] 
+            : $orderSubtotal * ($coupon['discount_value'] / 100);
     }
 
-    $shipping = ($subtotal >= 200) ? 0 : (($subtotal >= 52 && $subtotal <= 166.59) ? 15 : 20);
-    $total = $subtotal - $discount + $shipping;
+    $shippingCost = ($orderSubtotal >= 200) ? 0 : (($orderSubtotal >= 52 && $orderSubtotal <= 166.59) ? 15 : 20);
+    $orderTotal = $orderSubtotal - $discountAmount + $shippingCost;
 
-    $stock_ok = true;
-    foreach ($_SESSION['cart'] as $item) {
-        $stmt = $pdo->prepare("SELECT quantity FROM stock WHERE product_id = ?");
-        $stmt->execute([$item['product_id']]);
-        $stock = $stmt->fetchColumn();
-        if ($stock < $item['quantity']) {
-            $stock_ok = false;
+    return ['subtotal' => $orderSubtotal, 'discount' => $discountAmount, 'shipping' => $shippingCost, 'total' => $orderTotal];
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $customerName = $_POST['name'] ?? '';
+    $customerEmail = $_POST['email'] ?? '';
+    $customerAddress = sprintf("%s, %s, %s - %s, CEP: %s",
+        $_POST['street'], $_POST['number'], $_POST['city'], $_POST['state'], $_POST['cep']);
+
+    $totals = calculateOrderTotals($_SESSION['cart'] ?? [], $pdo);
+
+    $isStockValid = true;
+    foreach ($_SESSION['cart'] as $cartItem) {
+        $stockQuery = $pdo->prepare("SELECT quantity FROM stock WHERE product_id = ?");
+        $stockQuery->execute([$cartItem['product_id']]);
+        $availableStock = $stockQuery->fetchColumn();
+        if ($availableStock < $cartItem['quantity']) {
+            $isStockValid = false;
             break;
         }
     }
 
-    if ($stock_ok) {
-        $stmt = $pdo->prepare("INSERT INTO orders (customer_name, customer_email, customer_address, total, status) VALUES (?, ?, ?, ?, 'pending')");
-        $stmt->execute([$name, $email, $address, $total]);
-        $order_id = $pdo->lastInsertId();
+    if ($isStockValid) {
+        $orderQuery = $pdo->prepare("INSERT INTO orders (customer_name, customer_email, customer_address, total, status) VALUES (?, ?, ?, ?, 'pending')");
+        $orderQuery->execute([$customerName, $customerEmail, $customerAddress, $totals['total']]);
+        $newOrderId = $pdo->lastInsertId();
 
-        foreach ($_SESSION['cart'] as $item) {
-            $stmt = $pdo->prepare("SELECT price FROM products WHERE id = ?");
-            $stmt->execute([$item['product_id']]);
-            $price = $stmt->fetchColumn();
-            $stmt = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$order_id, $item['product_id'], $item['quantity'], $price]);
-            $stmt = $pdo->prepare("UPDATE stock SET quantity = quantity - ? WHERE product_id = ?");
-            $stmt->execute([$item['quantity'], $item['product_id']]);
+        foreach ($_SESSION['cart'] as $cartItem) {
+            $priceQuery = $pdo->prepare("SELECT price FROM products WHERE id = ?");
+            $priceQuery->execute([$cartItem['product_id']]);
+            $itemPrice = $priceQuery->fetchColumn();
+
+            $itemQuery = $pdo->prepare("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)");
+            $itemQuery->execute([$newOrderId, $cartItem['product_id'], $cartItem['quantity'], $itemPrice]);
+
+            $stockUpdate = $pdo->prepare("UPDATE stock SET quantity = quantity - ? WHERE product_id = ?");
+            $stockUpdate->execute([$cartItem['quantity'], $cartItem['product_id']]);
         }
 
-        mail($email, "Order Confirmation", "Your order #$order_id has been placed.\nAddress: $address\nTotal: R$$total", "From: no-reply@mini-erp.com");
+        $emailBody = "Obrigado pelo seu pedido #$newOrderId!\nEndereço: $customerAddress\nTotal: R$" . number_format($totals['total'], 2);
+        mail($customerEmail, "Confirmação do Pedido", $emailBody, "From: no-reply@lojaonline.com");
 
-        unset($_SESSION['cart']);
-        unset($_SESSION['coupon']);
-        header('Location: order_success.php');
+        unset($_SESSION['cart'], $_SESSION['coupon']);
+        header('Location: order_completed.php');
         exit;
     } else {
-        header('Location: cart.php?error=stock');
+        header('Location: cart.php?error=insufficient_stock');
         exit;
     }
 }
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-    <title>Checkout</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <title>Finalizar Compra</title>
+    <link rel="stylesheet" href="styles/custom.css">
 </head>
 <body>
-<div class="container">
-    <h1>Checkout</h1>
-    <form method="POST">
-        <div class="form-group">
-            <label for="name">Name</label>
-            <input type="text" class="form-control" id="name" name="name" required>
-        </div>
-        <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" class="form-control" id="email" name="email" required>
-        </div>
-        <div class="form-group">
-            <label for="cep">CEP</label>
-            <input type="text" class="form-control" id="cep" name="cep" required>
-        </div>
-        <div class="form-group">
-            <label for="street">Street</label>
-            <input type="text" class="form-control" id="street" name="street" required>
-        </div>
-        <div class="form-group">
-            <label for="number">Number</label>
-            <input type="text" class="form-control" id="number" name="number" required>
-        </div>
-        <div class="form-group">
-            <label for="city">City</label>
-            <input type="text" class="form-control" id="city" name="city" required>
-        </div>
-        <div class="form-group">
-            <label for="state">State</label>
-            <input type="text" class="form-control" id="state" name="state" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Place Order</button>
-    </form>
-</div>
-<script>
-    $('#cep').on('blur', function() {
-        var cep = $(this).val().replace(/\D/g, '');
-        if (cep.length == 8) {
-            $.getJSON('https://viacep.com.br/ws/' + cep + '/json/', function(data) {
-                if (!data.erro) {
-                    $('#street').val(data.logradouro);
-                    $('#city').val(data.localidade);
-                    $('#state').val(data.uf);
+    <div class="checkout-container">
+        <h1>Finalizar Compra</h1>
+        <form method="POST" class="checkout-form">
+            <div class="form-field">
+                <label for="customer_name">Nome Completo</label>
+                <input type="text" id="customer_name" name="name" required>
+            </div>
+            <div class="form-field">
+                <label for="customer_email">E-mail</label>
+                <input type="email" id="customer_email" name="email" required>
+            </div>
+            <div class="form-field">
+                <label for="postal_code">CEP</label>
+                <input type="text" id="postal_code" name="cep" required>
+            </div>
+            <div class="form-field">
+                <label for="address_street">Rua</label>
+                <input type="text" id="address_street" name="street" required>
+            </div>
+            <div class="form-field">
+                <label for="address_number">Número</label>
+                <input type="text" id="address_number" name="number" required>
+            </div>
+            <div class="form-field">
+                <label for="address_city">Cidade</label>
+                <input type="text" id="address_city" name="city" required>
+            </div>
+            <div class="form-field">
+                <label for="address_state">Estado</label>
+                <input type="text" id="address_state" name="state" required>
+            </div>
+            <button type="submit" class="submit-btn">Confirmar Pedido</button>
+        </form>
+    </div>
+    <script>
+        document.getElementById('postal_code').addEventListener('blur', async () => {
+            const cep = document.getElementById('postal_code').value.replace(/\D/g, '');
+            if (cep.length === 8) {
+                try {
+                    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                    const data = await response.json();
+                    if (!data.erro) {
+                        document.getElementById('address_street').value = data.logradouro;
+                        document.getElementById('address_city').value = data.localidade;
+                        document.getElementById('address_state').value = data.uf;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar CEP:', error);
                 }
-            });
-        }
-    });
-</script>
+            }
+        });
+    </script>
 </body>
 </html>

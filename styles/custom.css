@@ -1,0 +1,126 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+.checkout-container, .products-container, .cart-container, .coupons-container, .success-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+    color: #333;
+    text-align: center;
+}
+
+.form-field {
+    margin-bottom: 15px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-field input, .form-field select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.submit-btn, .update-btn, .apply-coupon-btn, .checkout-btn, .return-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.submit-btn:hover, .update-btn:hover, .apply-coupon-btn:hover, .checkout-btn:hover, .return-btn:hover {
+    background-color: #218838;
+}
+
+.update-btn[name="remove_item"] {
+    background-color: #dc3545; 
+}
+
+.update-btn[name="remove_item"]:hover {
+    background-color: #c82333;
+}
+
+.action-btn {
+    padding: 5px 10px;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+.edit-btn {
+    background-color: #ffc107;
+}
+
+.edit-btn:hover {
+    background-color: #e0a800;
+}
+
+.buy-btn {
+    background-color: #007bff;
+}
+
+.buy-btn:hover {
+    background-color: #0056b3;
+}
+
+.products-table, .cart-table, .coupons-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.products-table th, .products-table td, .cart-table th, .cart-table td, .coupons-table th, .coupons-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.products-table th, .cart-table th, .coupons-table th {
+    background-color: #f8f9fa;
+}
+
+.totals-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.success-message, .error-message {
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.success-message {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.cart-link, .checkout-btn, .return-btn {
+    display: inline-block;
+    margin-top: 20px;
+    text-decoration: none;
+}

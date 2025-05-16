@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-    <title>Order Success</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Compra Concluída</title>
+    <link rel="stylesheet" href="styles/custom.css">
 </head>
 <body>
-<div class="container">
-    <h1>Order Placed Successfully!</h1>
-    <p>Thank you for your purchase. You'll receive a confirmation email soon.</p>
-    <a href="products.php" class="btn btn-primary">Back to Products</a>
-</div>
+    <div class="success-container">
+        <h1>Compra Concluída com Sucesso!</h1>
+        <p>Obrigado pela sua compra! Você receberá um e-mail com os detalhes do pedido em breve.</p>
+        <a href="products.php" class="return-btn">Voltar às Compras</a>
+    </div>
 </body>
 </html>
